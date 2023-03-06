@@ -239,6 +239,7 @@ RUN Rscript -e "remotes::install_cran('glmpath')"
 RUN Rscript -e "remotes::install_cran('testthat')"
 RUN Rscript -e "remotes::install_cran('DBI')"
 RUN Rscript -e "remotes::install_cran('odbc')"
+RUN Rscript -e "remotes::install_cran('stringdist')"
 
 # -- vanilla because there is a bug that causes the R intro / preamble text to get pushed into the compiler
 RUN Rscript --vanilla -e "remotes::install_cran('lme4', repos='"$R_REPOSITORY"')"
@@ -257,6 +258,7 @@ RUN Rscript -e "remotes::install_cran('reshape2')"
 RUN Rscript -e "remotes::install_cran('jsonlite')"
 RUN Rscript -e "remotes::install_cran('viridis')"
 RUN Rscript -e "remotes::install_cran('optparse')"
+RUN Rscript -e "remotes::install_cran('glue')"
 
 # need old version of rvest in order for the hack that parses URLs to work in the NHANES download script
 RUN Rscript -e "remove.packages('rvest')"
@@ -274,8 +276,8 @@ RUN chmod -R 777 /usr/local/lib/R/doc/html/packages.html
 RUN mkdir /opt/rstudioserver
 WORKDIR /opt/rstudioserver
 
-RUN wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.10_amd64.deb
-RUN dpkg -i ./libssl1.0.0_1.0.2n-1ubuntu5.10_amd64.deb
+RUN wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
+RUN dpkg -i ./libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
 
 RUN apt-get update && apt-get install -y gdebi-core
 
@@ -316,20 +318,20 @@ RUN chmod -R 777 /NHANES/Data
 ARG ACCEPT_EULA=Y
 ARG SA_PASSWORD=yourStrong(!)Password
 # run the download and database build
-RUN runuser -m -p  mssql -c '/opt/mssql/bin/sqlservr &' \
-	&& Rscript /NHANES/download.R --container-build=TRUE
+# RUN runuser -m -p  mssql -c '/opt/mssql/bin/sqlservr &' \
+# 	&& Rscript /NHANES/download.R --container-build=TRUE
 	
-# run the ETL process to load variable metadata
-COPY Code/R/etlVariableCodebook.R /NHANES/etlVariableCodebook.R
-WORKDIR /tmp
-RUN git clone https://github.com/ccb-hms/NHANES-metadata.git
-WORKDIR /tmp/NHANES-metadata
-RUN git checkout tags/v1.3.0
-RUN runuser -m -p  mssql -c '/opt/mssql/bin/sqlservr &' \
-	&& Rscript /NHANES/etlVariableCodebook.R
+# # run the ETL process to load variable metadata
+# COPY Code/R/etlVariableCodebook.R /NHANES/etlVariableCodebook.R
+# WORKDIR /tmp
+# RUN git clone https://github.com/ccb-hms/NHANES-metadata.git
+# WORKDIR /tmp/NHANES-metadata
+# RUN git checkout tags/v1.3.0
+# RUN runuser -m -p  mssql -c '/opt/mssql/bin/sqlservr &' \
+# 	&& Rscript /NHANES/etlVariableCodebook.R
 
-# install packages, which require newer version of rvest in conflict with the download / build script
-RUN Rscript -e "remotes::install_version('nhanesA', repos='https://cran.microsoft.com/snapshot/2022-11-06', upgrade=TRUE, version='0.7.1')"
-RUN Rscript -e "remotes::install_version('DT', repos='https://cran.microsoft.com/snapshot/2022-11-06', upgrade=TRUE, version='0.26')"
+# # install packages, which require newer version of rvest in conflict with the download / build script
+# RUN Rscript -e "remotes::install_version('nhanesA', repos='https://cran.microsoft.com/snapshot/2022-11-06', upgrade=TRUE, version='0.7.1')"
+# RUN Rscript -e "remotes::install_version('DT', repos='https://cran.microsoft.com/snapshot/2022-11-06', upgrade=TRUE, version='0.26')"
 
 CMD ["/startup/startup.sh"]
