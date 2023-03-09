@@ -40,7 +40,7 @@ sqlPassword = "yourStrong(!)Password"
 sqlDefaultDb = "master"
 
 # control persistence of downloaded and extracted text files
-persistTextFiles = TRUE
+persistTextFiles = FALSE
 
 outputDirectory = "/NHANES/Data"
 
@@ -84,7 +84,9 @@ fileListTable <- fileListTable[!grepl(pattern = "^P_", fileListTable$'Data File 
 # Create groups by removing anything after the first "_" from 'Data File Name' 
 fileListTable$'Data File Name' <- gsub('^(.*?)_.*', '\\1', as.character(fileListTable$'Data File Name'))
 
-# Skip the data types that cause issues (see lines) 
+# Skip the data types and URLs that cause issues
+fileListTable <- fileListTable[!grepl("https://wwwn.cdc.govNA", fileListTable$'Data File'),]  # invalid URL
+fileListTable <- fileListTable[!grepl("https://wwwn.cdc.gov/Nchs/Nhanes/Dxa/Dxa.aspx", fileListTable$'Data File'),]  # invalid URL
 fileListTable <- fileListTable[!grepl("PAXMIN", fileListTable$'Data File Name'),]       # large files take a long time to download, not likely used in most cases
 fileListTable <- fileListTable[!grepl("All Years", fileListTable$'Data File Name'),]       # large files take a long time to download, not likely used in most cases
 fileListTable <- fileListTable[!grepl("PAX80", fileListTable$'Data File Name'),]        # only available by FTP
@@ -235,7 +237,6 @@ SqlTools::dbSendUpdate(cn, "USE NhanesLandingZone")
 # prevent scientific notation
 options(scipen = 15)
 
-
 # track which variables appear in each questionnaire
 questionnaireVariables = dplyr::tibble(
   Questionnaire=character(), 
@@ -278,100 +279,95 @@ for (i in i:length(dataTypes)) {
     urlSplit = strsplit(x = currFileUrl, split = "/", fixed = TRUE)[[1]]
     fileName  = urlSplit[length(urlSplit)]
 
-    if (
-      currFileUrl != "https://wwwn.cdc.govNA"
-      
-      && currFileUrl != "https://wwwn.cdc.gov/Nchs/Nhanes/Dxa/Dxa.aspx"
-    ) {
-      cat("reading ", currFileUrl, "\n")
-      
-      # attempt to download each file and log errors
-      result = tryCatch({
-        currTemp = tempfile()
-        utils::download.file(
-          url = currFileUrl, 
-          destfile = currTemp
-        )
-        z = haven::read_xpt(currTemp)
-        file.remove(currTemp)
-        z
-      }, warning = function(w) {
-        downloadErrors <<- dplyr::bind_rows(
-          downloadErrors, 
-          dplyr::bind_cols(
-            "DataType" = currDataType, 
-            "FileUrl" = currFileUrl,
-            "Error" = "warning"
-          )
-        )
-        return("warning")
-      }, error = function(e) {
-        downloadErrors <<- dplyr::bind_rows(
-          downloadErrors, 
-          dplyr::bind_cols(
-            "DataType" = currDataType, 
-            "FileUrl" = currFileUrl,
-            "Error" = "error"
-          )
-        )
-        return("error")
-      })
-      
-      if (result == "warning" || result == "error") {
-        next
-      }
-      
-      # save the survey years in the demographics table
-      if (currDataType == "DemographicVariablesAndSampleWeights") {
-        years = dplyr::tibble("years" = rep(x=currYears, times=nrow(result)))
-        result = dplyr::bind_cols(result, years)
-      }
-      
-      # append a column containing the URL from which the original data was pulled
-      result = dplyr::bind_cols(
-        result, 
-        dplyr::tibble("DownloadUrl" = rep(x=currFileUrl, times=nrow(result)))
+    #TODO move these to the exlusions group above^^^
+    cat("reading ", currFileUrl, "\n")
+    
+    # attempt to download each file and log errors
+    result = tryCatch({
+      currTemp = tempfile()
+      utils::download.file(
+        url = currFileUrl, 
+        destfile = currTemp
       )
-      
-      # append a column containing the questionnaire abbreviation
-      result = dplyr::bind_cols(
-        result, 
-        dplyr::tibble("Questionnaire" = rep(x=gsub(pattern="\\.XPT", replace="", fixed=FALSE, ignore.case=TRUE, fileName), times=nrow(result)))
-      )
-      
-      beginYear = as.numeric(strsplit(x=currYears, split="-")[[1]][1])
-      endYear = as.numeric(strsplit(x=currYears, split="-")[[1]][2])
-      
-      # save mapping from questionnaire to variables
-      questionnaireVariables =
-        dplyr::bind_rows(
-          questionnaireVariables, 
-          dplyr::bind_cols(
-            "Questionnaire" = 
-              rep(
-                dplyr::pull(result[1, "Questionnaire"]), 
-                times = ncol(result)
-              ), 
-            "Variable" = colnames(result),
-            "BeginYear" = rep(beginYear, times = ncol(result)),
-            "EndYear" = rep(endYear, times = ncol(result)),
-            "TableName" = rep(currDataType, times = ncol(result))
-          )
+      z = haven::read_xpt(currTemp)
+      file.remove(currTemp)
+      z
+    }, warning = function(w) {
+      downloadErrors <<- dplyr::bind_rows(
+        downloadErrors, 
+        dplyr::bind_cols(
+          "DataType" = currDataType, 
+          "FileUrl" = currFileUrl,
+          "Error" = "warning"
         )
-      
-      dfList[[length(dfList) + 1]] = result
-      rm(result)
-      gc()
-      
-      cat("done reading ", currFileUrl, "\n")
+      )
+      return("warning")
+    }, error = function(e) {
+      downloadErrors <<- dplyr::bind_rows(
+        downloadErrors, 
+        dplyr::bind_cols(
+          "DataType" = currDataType, 
+          "FileUrl" = currFileUrl,
+          "Error" = "error"
+        )
+      )
+      return("error")
+    })
+    
+    if (result == "warning" || result == "error") {
+      next
     }
+
+    # save the survey years in the demographics table
+    if (currDataType == "DEMO") {
+      years = dplyr::tibble("years" = rep(x=currYears, times=nrow(result)))
+      result = dplyr::bind_cols(result, years)
+    }
+
+    # append a column containing the URL from which the original data was pulled
+    result = dplyr::bind_cols(
+      result, 
+      dplyr::tibble("DownloadUrl" = rep(x=currFileUrl, times=nrow(result)))
+    )
+
+    # append a column containing the questionnaire abbreviation
+    result = dplyr::bind_cols(
+      result, 
+      dplyr::tibble("Questionnaire" = rep(x=gsub(pattern="\\.XPT", replace="", fixed=FALSE, ignore.case=TRUE, fileName), times=nrow(result)))
+    )
+
+    beginYear = as.numeric(strsplit(x=currYears, split="-")[[1]][1])
+    endYear = as.numeric(strsplit(x=currYears, split="-")[[1]][2])
+
+    # save mapping from questionnaire to variables
+    questionnaireVariables =
+      dplyr::bind_rows(
+        questionnaireVariables, 
+        dplyr::bind_cols(
+          "Questionnaire" = 
+            rep(
+              dplyr::pull(result[1, "Questionnaire"]), 
+              times = ncol(result)
+            ), 
+          "Variable" = colnames(result),
+          "BeginYear" = rep(beginYear, times = ncol(result)),
+          "EndYear" = rep(endYear, times = ncol(result)),
+          "TableName" = rep(currDataType, times = ncol(result))
+        )
+      )
+    
+    dfList[[length(dfList) + 1]] = result
+    rm(result)
+    gc()
+    
+    cat("done reading ", currFileUrl, "\n")
   }
   
   # fix inconsistent types in PSA age variable
   # there are actually two versions of the age variable, 'KID221' and KIQ221
   # not clear whether one or the other is supposed to be double / char from
   # the NHANES documentation
-  if (currDataType == "ProstateSpecificAntigenPSA") {
+  if (currDataType == "PSA") {
     for (j in 1:length(dfList)) {
       if ("KID221" %in% colnames(dfList[[j]])) {
         dfList[[j]][,"KID221"] = as.character(dfList[[j]][,"KID221"][[1]])
@@ -425,21 +421,32 @@ for (i in i:length(dataTypes)) {
 
     # generate SQL table definitions from column types in tibbles
     createTableQuery = DBI::sqlCreateTable(DBI::ANSI(), currDataType, m)
-    
+
     # change TEXT to VARCHAR(256)
     createTableQuery = gsub(createTableQuery, pattern = "\" TEXT", replace = "\" VARCHAR(256)", fixed = TRUE)
-    
+
     # change DOUBLE to float
     createTableQuery = gsub(createTableQuery, pattern = "\" DOUBLE", replace = "\" float", fixed = TRUE)
-    
+
     # we know that SEQN should always be an INT
-    createTableQuery = gsub(createTableQuery, pattern = "\"SEQN\" float", replace = "\"SEQN\" INT", fixed = TRUE)
-    
-    
+    createTableQuery = gsub(createTableQuery, pattern = "\"SEQN\" float", replace = "\"SEQN\" INT", fixed = TRUE) # nolint
+
     # create the table in SQL
     SqlTools::dbSendUpdate(cn, createTableQuery)
-    
-    
+
+    if (currDataType == "AUX") {
+      currOutputFileName = "/NHANES/Data/AUXtry"
+      write.table(
+      m,
+      file = currOutputFileName,
+      sep = "\t",
+      na = "",
+      row.names = FALSE,
+      col.names = FALSE,
+      quote = FALSE
+    )
+    }
+
     # run bulk insert
     insertStatement = paste(sep="",
                             "BULK INSERT ",
@@ -507,35 +514,6 @@ SqlTools::dbSendUpdate(cn, "DBCC SHRINKFILE(NhanesLandingZone_log)")
 
 # issue checkpoint
 SqlTools::dbSendUpdate(cn, "CHECKPOINT")
-
-# create views named as the NHANES questionnaire abbreviations
-m = DBI::dbGetQuery(cn, "
-    SELECT TABLE_NAME
-    FROM INFORMATION_SCHEMA.TABLES
-    WHERE 
-        TABLE_TYPE = 'BASE TABLE' 
-        AND TABLE_CATALOG='NhanesLandingZone'
-        AND TABLE_NAME != 'QuestionnaireVariables'
-")
-
-for (i in 1:nrow(m)) {
-  
-  currTableName = m[i,"TABLE_NAME"]
-  questionnaireLables = DBI::dbGetQuery(
-    cn, 
-    paste(
-      sep="", 
-      "SELECT Questionnaire FROM ", currTableName, " GROUP BY Questionnaire")
-  )
-  
-  for (j in 1:nrow(questionnaireLables)) {
-    
-    currQuestionnaire = questionnaireLables[j, "Questionnaire"]
-    DBI::dbGetQuery(
-      cn, 
-      paste(sep="", "CREATE VIEW ", currQuestionnaire, " AS SELECT * FROM ", currTableName, " WHERE Questionnaire = '", currQuestionnaire, "'"))
-  }
-}
 
 # create a table to hold records of the failed file downloads
 SqlTools::dbSendUpdate(cn, "CREATE TABLE DownloadErrors (DataType varchar(1024), FileUrl varchar(1024), Error varchar(256))")
