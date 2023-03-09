@@ -68,6 +68,12 @@ fileListTable = dplyr::`%>%`(htmlObj, rvest::html_table())[[1]]
 # Add Data File Name column, populate with Data File Names
 fileListTable$'Data File Name' <- gsub(" Doc","",as.character(fileListTable$'Doc File'))
 
+# Replace URLS with the incorrect years in their url
+fileListTable$Years[fileListTable$Years == "1988-2020"] <- '1999-2000'
+fileListTable$Years[fileListTable$Years == "2007-2012"] <- '2007-2008'
+fileListTable$Years[fileListTable$Years == "1999-2004"] <- '1999-2000'
+fileListTable$Years[fileListTable$Years == "1999-2020"] <- '1999-2000'
+
 # Replace Doc File Column with the correct url
 fileListTable$'Doc File' <- glue("https://wwwn.cdc.gov/Nchs/Nhanes/{fileListTable$Years}/{fileListTable$'Doc File'}.htm")
 fileListTable$'Doc File'<-gsub(" Doc","",as.character(fileListTable$'Doc File'))
@@ -80,6 +86,9 @@ fileListTable$'Data File'<-gsub(" Data","",as.character(fileListTable$'Data File
 
 # Ignore rows which being with the prefix P_, these are the "pandemic" 2017 -- 2020 summary files
 fileListTable <- fileListTable[!grepl(pattern = "^P_", fileListTable$'Data File Name'),]
+
+# Remove the PAHS_H File specifically, the other PAHS files are OK.
+fileListTable <- fileListTable[!grepl("PAHS_H", fileListTable$'Data File Name'),]  
 
 # Create groups by removing anything after the first "_" from 'Data File Name' 
 fileListTable$'Data File Name' <- gsub('^(.*?)_.*', '\\1', as.character(fileListTable$'Data File Name'))
@@ -103,6 +112,7 @@ fileListTable <- fileListTable[!grepl("L05", fileListTable$'Data File Name'),]  
 fileListTable <- fileListTable[!grepl("PAXRAW", fileListTable$'Data File Name'),]       # not publicly available
 fileListTable <- fileListTable[!grepl("SPXRAW", fileListTable$'Data File Name'),]       # not publicly available
 fileListTable <- fileListTable[!grepl("PAXMIN", fileListTable$'Data File Name'),]       # not publicly available
+
 
 # clean up data type names
 fileListTable[,"Data File Name"] = 
