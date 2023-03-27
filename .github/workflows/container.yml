@@ -2,7 +2,7 @@ on: push
 jobs:
   build-container:
     name: Build container
-    runs-on: hmsccb/nhanes-workbench:jan-09-2023
+    runs-on: ubuntu:latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
