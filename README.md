@@ -7,11 +7,13 @@ The image contains SQL Server for Linux, R, RStudio Server, among other utilitie
 ## Running the image
 An image with a pre-built database can be run as follows:
 
+
 ```
 docker \
     run \
         --rm \
         --name nhanes-workbench \
+        --platform linux/amd64 \
         -d \
         -v LOCAL_DIRECTORY:/HostData \
         -p 8787:8787 \
@@ -21,7 +23,7 @@ docker \
         -e 'CONTAINER_USER_PASSWORD=PASSWORD' \
         -e 'ACCEPT_EULA=Y' \
         -e 'SA_PASSWORD=yourStrong(!)Password' \
-        hmsccb/nhanes-workbench:sept-12-2021
+        hmsccb/nhanes-workbench:latest
 ```
 
 ### Parameters
