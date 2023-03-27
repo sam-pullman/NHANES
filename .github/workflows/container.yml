@@ -7,13 +7,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
     - name: login to Docker Hub
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-    - name: Build and push to Docker Hub
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        push: true
-        tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
+    # - name: Build and push to Docker Hub
+    #   uses: docker/build-push-action@v2
+    #   with:
+    #     context: .
+    #     push: true
+    #     tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
