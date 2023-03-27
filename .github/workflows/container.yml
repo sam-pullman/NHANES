@@ -1,0 +1,19 @@
+on: push
+jobs:
+  build-container:
+    name: build container
+    runs-on: hmsccb/nhanes-workbench:jan-09-2023
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+    - name: login to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secres.DOCKER_HUB_ACCESS_TOKEN }}
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
