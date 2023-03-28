@@ -23,6 +23,6 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: .
-        file: ./Dockerfile
+        file: ./Container/Dockerfile
         push: true
         tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
