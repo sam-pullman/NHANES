@@ -2,7 +2,7 @@ on: push
 jobs:
   build-container:
     name: Build container
-    runs-on: ubuntu-latest
+    runs-on: hmsccb/nhanes-workbench:jan-09-2023
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -11,9 +11,9 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-    # - name: Build and push to Docker Hub
-    #   uses: docker/build-push-action@v2
-    #   with:
-    #     context: .
-    #     push: true
-    #     tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: spullman/nhanes-workbench:latest, spullman/nhanes-workbench:${{ github.run_number }}
